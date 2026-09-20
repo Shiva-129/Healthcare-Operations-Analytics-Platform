@@ -1,4 +1,10 @@
-# 🏥 Hospital Analytics Dashboard | End-to-End Data Analytics Project
+# 🏥 Healthcare Operations Analytics Platform | End-to-End Clinical Data & AI Pipeline
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28%2B-FF4B4B.svg?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-ML-orange.svg?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![LangChain](https://img.shields.io/badge/LangChain-RAG-green.svg?logo=langchain&logoColor=white)](https://python.langchain.com/)
+[![PowerBI](https://img.shields.io/badge/Power_BI-Reporting-yellow.svg?logo=powerbi&logoColor=white)](https://powerbi.microsoft.com/)
 
 ## 📌 Project Overview
 
