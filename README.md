@@ -22,8 +22,8 @@ Dataset source: https://www.kaggle.com/datasets/kanakbaghel/hospital-management-
 ### 1) Clone the repo and create a virtual environment
 
 ```powershell
-git clone https://github.com/saqlain914/Hospital_Analytics
-cd Hospital-Analytics
+git clone https://github.com/Shiva-129/Healthcare-Operations-Analytics-Platform.git
+cd Healthcare-Operations-Analytics-Platform
 python -m venv test_env
 .\test_env\Scripts\Activate.ps1
 ```
@@ -385,9 +385,9 @@ This project enables hospitals to:
 
 # 👨‍💻 Author
 
-**Saqlain Sheikh**
+**Shiva Sathwik**
 
-BCA Student | Aspiring Data Analyst
+[GitHub Profile](https://github.com/Shiva-129) • [Email](mailto:shivasathwik74@gmail.com)
 
 Skills:
 Python • SQL • Power BI • Pandas • Streamlit • Scikit-learn • LangChain • Ollama • ETL • Data Analytics
