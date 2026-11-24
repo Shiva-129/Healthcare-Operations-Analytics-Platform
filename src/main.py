@@ -8,11 +8,25 @@ Run with:
     python src/main.py
 """
 
+import logging
+import sys
 import time
+from pathlib import Path
 
-from extract import main as extract_main
-from transform import run_transform
-from load_sql import main as load_main
+# Ensure root repository directory is in sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from src.extract import main as extract_main
+from src.transform import run_transform
+from src.load_sql import main as load_main
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("etl_orchestrator")
 
 
 def run_pipeline():

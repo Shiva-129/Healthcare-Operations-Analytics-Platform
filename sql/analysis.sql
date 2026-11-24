@@ -1,150 +1,184 @@
+-- ==============================================================================
 -- analysis.sql
--- Business analysis queries for the Hospital Analytics project.
--- Written against the schema in create_tables.sql (PatientID, Name, Age, Gender,
--- BloodType, MedicalCondition, DateOfAdmission, Doctor, Hospital, Department,
--- InsuranceProvider, BillingAmount, RoomNumber, AdmissionType, DischargeDate,
--- Medication, TestResults, AgeGroup, LengthOfStay, AdmissionYear, AdmissionMonth,
--- AdmissionMonthName).
--- If you loaded data via load_sql.py (pandas to_sql), table/column names will
--- instead match the cleaned CSV headers exactly (e.g. [Billing Amount]) --
--- adjust bracketed identifiers accordingly.
-
-USE HospitalDB;
-GO
+-- Business analysis queries for the Healthcare Operations Analytics Platform.
+-- Written against the standardized snake_case schema of the 'patients' table.
+-- Compatible with SQLite (default local) and Microsoft SQL Server (production).
+-- ==============================================================================
 
 -- 1. Total Patients
-SELECT COUNT(*) AS TotalPatients
-FROM dbo.Patients;
+SELECT COUNT(*) AS total_patients
+FROM patients;
 
 -- 2. Monthly Admissions Trend
-SELECT AdmissionYear, AdmissionMonth, AdmissionMonthName, COUNT(*) AS Admissions
-FROM dbo.Patients
-GROUP BY AdmissionYear, AdmissionMonth, AdmissionMonthName
-ORDER BY AdmissionYear, AdmissionMonth;
+SELECT 
+    admission_year, 
+    admission_month, 
+    admission_month_name, 
+    COUNT(*) AS admissions
+FROM patients
+GROUP BY admission_year, admission_month, admission_month_name
+ORDER BY admission_year, admission_month;
 
--- 3. Department-wise Revenue
-SELECT Department, SUM(BillingAmount) AS TotalRevenue, COUNT(*) AS PatientCount
-FROM dbo.Patients
-GROUP BY Department
-ORDER BY TotalRevenue DESC;
+-- 3. Department-wise Revenue & Patient Volume
+SELECT 
+    department, 
+    ROUND(SUM(billing_amount), 2) AS total_revenue, 
+    COUNT(*) AS patient_count,
+    ROUND(AVG(billing_amount), 2) AS avg_billing_per_patient
+FROM patients
+GROUP BY department
+ORDER BY total_revenue DESC;
 
 -- 4. Top 10 Doctors by Patient Count
-SELECT TOP 10 Doctor, COUNT(*) AS PatientsHandled, SUM(BillingAmount) AS RevenueGenerated
-FROM dbo.Patients
-GROUP BY Doctor
-ORDER BY PatientsHandled DESC;
+-- For SQL Server: replace 'LIMIT 10' with 'SELECT TOP 10 ...'
+SELECT 
+    doctor, 
+    COUNT(*) AS patients_handled, 
+    ROUND(SUM(billing_amount), 2) AS revenue_generated
+FROM patients
+GROUP BY doctor
+ORDER BY patients_handled DESC
+LIMIT 10;
 
--- 5. Average Billing Amount Overall and by Department
-SELECT Department, AVG(BillingAmount) AS AvgBilling
-FROM dbo.Patients
-GROUP BY Department
-ORDER BY AvgBilling DESC;
+-- 5. Average Billing Amount by Department
+SELECT 
+    department, 
+    ROUND(AVG(billing_amount), 2) AS avg_billing
+FROM patients
+GROUP BY department
+ORDER BY avg_billing DESC;
 
--- 6. Average Length of Stay by Department
-SELECT Department, AVG(CAST(LengthOfStay AS FLOAT)) AS AvgLengthOfStay
-FROM dbo.Patients
-GROUP BY Department
-ORDER BY AvgLengthOfStay DESC;
+-- 6. Average Length of Stay by Department (in days)
+SELECT 
+    department, 
+    ROUND(AVG(CAST(length_of_stay AS FLOAT)), 2) AS avg_length_of_stay
+FROM patients
+GROUP BY department
+ORDER BY avg_length_of_stay DESC;
 
 -- 7. Insurance Provider Analysis
-SELECT InsuranceProvider, COUNT(*) AS PatientCount, SUM(BillingAmount) AS TotalBilled
-FROM dbo.Patients
-GROUP BY InsuranceProvider
-ORDER BY PatientCount DESC;
+SELECT 
+    insurance_provider, 
+    COUNT(*) AS patient_count, 
+    ROUND(SUM(billing_amount), 2) AS total_billed,
+    ROUND(AVG(billing_amount), 2) AS avg_billed
+FROM patients
+GROUP BY insurance_provider
+ORDER BY patient_count DESC;
 
--- 8. Gender Distribution
-SELECT Gender, COUNT(*) AS PatientCount,
-       CAST(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER () AS DECIMAL(5,2)) AS Percentage
-FROM dbo.Patients
-GROUP BY Gender;
+-- 8. Gender Distribution & Percentage of Total
+SELECT 
+    gender, 
+    COUNT(*) AS patient_count,
+    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM patients), 2) AS percentage
+FROM patients
+GROUP BY gender;
 
 -- 9. Age Group Distribution
-SELECT AgeGroup, COUNT(*) AS PatientCount
-FROM dbo.Patients
-GROUP BY AgeGroup
-ORDER BY PatientCount DESC;
+SELECT 
+    age_group, 
+    COUNT(*) AS patient_count
+FROM patients
+GROUP BY age_group
+ORDER BY patient_count DESC;
 
--- 10. Yearly Patient Trends
-SELECT AdmissionYear, COUNT(*) AS TotalPatients, SUM(BillingAmount) AS TotalRevenue
-FROM dbo.Patients
-GROUP BY AdmissionYear
-ORDER BY AdmissionYear;
+-- 10. Yearly Patient Trends & Revenue
+SELECT 
+    admission_year, 
+    COUNT(*) AS total_patients, 
+    ROUND(SUM(billing_amount), 2) AS total_revenue
+FROM patients
+GROUP BY admission_year
+ORDER BY admission_year;
 
--- 11. Revenue Ranking by Department (Window Function)
-SELECT Department,
-       SUM(BillingAmount) AS TotalRevenue,
-       RANK() OVER (ORDER BY SUM(BillingAmount) DESC) AS RevenueRank
-FROM dbo.Patients
-GROUP BY Department;
+-- 11. Revenue Ranking by Department (Window Function: RANK)
+SELECT 
+    department,
+    ROUND(SUM(billing_amount), 2) AS total_revenue,
+    RANK() OVER (ORDER BY SUM(billing_amount) DESC) AS revenue_rank
+FROM patients
+GROUP BY department;
 
--- 12. Doctor Ranking within each Department (Window Function)
-SELECT Department, Doctor, PatientsHandled,
-       ROW_NUMBER() OVER (PARTITION BY Department ORDER BY PatientsHandled DESC) AS RankInDept
+-- 12. Doctor Ranking within each Department (Window Function: ROW_NUMBER)
+SELECT 
+    department, 
+    doctor, 
+    patients_handled,
+    ROW_NUMBER() OVER (PARTITION BY department ORDER BY patients_handled DESC) AS rank_in_dept
 FROM (
-    SELECT Department, Doctor, COUNT(*) AS PatientsHandled
-    FROM dbo.Patients
-    GROUP BY Department, Doctor
-) AS DeptDoctorCounts;
+    SELECT department, doctor, COUNT(*) AS patients_handled
+    FROM patients
+    GROUP BY department, doctor
+) AS dept_doctor_counts;
 
--- 13. CTE: Patients with Above-Average Billing
-WITH AvgBilling AS (
-    SELECT AVG(BillingAmount) AS OverallAvg FROM dbo.Patients
+-- 13. CTE: High-Cost Patients (Above Overall Average Billing)
+WITH avg_billing AS (
+    SELECT AVG(billing_amount) AS overall_avg FROM patients
 )
-SELECT p.PatientID, p.Name, p.Department, p.BillingAmount
-FROM dbo.Patients p
-CROSS JOIN AvgBilling a
-WHERE p.BillingAmount > a.OverallAvg
-ORDER BY p.BillingAmount DESC;
+SELECT 
+    p.patient_id, 
+    p.name, 
+    p.department, 
+    p.billing_amount
+FROM patients p
+CROSS JOIN avg_billing a
+WHERE p.billing_amount > a.overall_avg
+ORDER BY p.billing_amount DESC
+LIMIT 50;
 
--- 14. CTE: Monthly Revenue Growth (Month-over-Month)
-WITH MonthlyRevenue AS (
-    SELECT AdmissionYear, AdmissionMonth, SUM(BillingAmount) AS Revenue
-    FROM dbo.Patients
-    GROUP BY AdmissionYear, AdmissionMonth
+-- 14. CTE: Month-over-Month Revenue Growth (Window Function: LAG)
+WITH monthly_revenue AS (
+    SELECT 
+        admission_year, 
+        admission_month, 
+        ROUND(SUM(billing_amount), 2) AS revenue
+    FROM patients
+    GROUP BY admission_year, admission_month
 )
-SELECT AdmissionYear, AdmissionMonth, Revenue,
-       LAG(Revenue) OVER (ORDER BY AdmissionYear, AdmissionMonth) AS PrevMonthRevenue,
-       Revenue - LAG(Revenue) OVER (ORDER BY AdmissionYear, AdmissionMonth) AS RevenueChange
-FROM MonthlyRevenue
-ORDER BY AdmissionYear, AdmissionMonth;
+SELECT 
+    admission_year, 
+    admission_month, 
+    revenue,
+    LAG(revenue) OVER (ORDER BY admission_year, admission_month) AS prev_month_revenue,
+    ROUND(revenue - LAG(revenue) OVER (ORDER BY admission_year, admission_month), 2) AS revenue_change
+FROM monthly_revenue
+ORDER BY admission_year, admission_month;
 
 -- 15. Most Frequent Medical Conditions
-SELECT MedicalCondition, COUNT(*) AS Cases
-FROM dbo.Patients
-GROUP BY MedicalCondition
-ORDER BY Cases DESC;
+SELECT 
+    medical_condition, 
+    COUNT(*) AS cases,
+    ROUND(AVG(length_of_stay), 2) AS avg_stay_days
+FROM patients
+GROUP BY medical_condition
+ORDER BY cases DESC;
 
 -- 16. Test Results Breakdown
-SELECT TestResults, COUNT(*) AS Count
-FROM dbo.Patients
-GROUP BY TestResults;
+SELECT 
+    test_results, 
+    COUNT(*) AS count,
+    ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM patients), 2) AS percentage
+FROM patients
+GROUP BY test_results;
 
--- 17. View: Executive Summary (reusable for Power BI / reporting)
-IF OBJECT_ID('dbo.vw_ExecutiveSummary', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_ExecutiveSummary;
-GO
-
-CREATE VIEW dbo.vw_ExecutiveSummary AS
+-- 17. Reusable View: Executive Summary (for BI & Dashboards)
+DROP VIEW IF EXISTS vw_executive_summary;
+CREATE VIEW vw_executive_summary AS
 SELECT
-    COUNT(*)                         AS TotalPatients,
-    SUM(BillingAmount)               AS TotalRevenue,
-    AVG(BillingAmount)               AS AvgBilling,
-    AVG(CAST(LengthOfStay AS FLOAT)) AS AvgLengthOfStay
-FROM dbo.Patients;
-GO
+    COUNT(*)                                  AS total_patients,
+    ROUND(SUM(billing_amount), 2)             AS total_revenue,
+    ROUND(AVG(billing_amount), 2)             AS avg_billing,
+    ROUND(AVG(CAST(length_of_stay AS FLOAT)), 2) AS avg_length_of_stay
+FROM patients;
 
--- 18. View: Department Performance (reusable for Power BI / reporting)
-IF OBJECT_ID('dbo.vw_DepartmentPerformance', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_DepartmentPerformance;
-GO
-
-CREATE VIEW dbo.vw_DepartmentPerformance AS
+-- 18. Reusable View: Department Performance Summary
+DROP VIEW IF EXISTS vw_department_performance;
+CREATE VIEW vw_department_performance AS
 SELECT
-    Department,
-    COUNT(*)                          AS PatientCount,
-    SUM(BillingAmount)                AS TotalRevenue,
-    AVG(BillingAmount)                AS AvgBilling,
-    AVG(CAST(LengthOfStay AS FLOAT))  AS AvgLengthOfStay
-FROM dbo.Patients
-GROUP BY Department;
-GO
+    department,
+    COUNT(*)                                   AS patient_count,
+    ROUND(SUM(billing_amount), 2)              AS total_revenue,
+    ROUND(AVG(billing_amount), 2)              AS avg_billing,
+    ROUND(AVG(CAST(length_of_stay AS FLOAT)), 2) AS avg_length_of_stay
+FROM patients
+GROUP BY department;

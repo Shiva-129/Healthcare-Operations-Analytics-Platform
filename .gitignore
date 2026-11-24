@@ -1,9 +1,11 @@
 .env
 __pycache__/
 *.pyc
+*.db
 data/raw/*.csv
 data/cleaned/*.csv
 data/cleaned/*.db
+data/*.db
 .ipynb_checkpoints/
 .venv/
 venv/
